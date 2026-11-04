@@ -86,18 +86,45 @@
     cursor: pointer;
   }
   button:hover { filter: brightness(1.1); }
+  html, body { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .board { touch-action: none; }
   .pad {
     display: grid;
-    grid-template-columns: repeat(3, 56px);
-    gap: 6px;
+    grid-template-columns: repeat(3, 72px);
+    grid-template-rows: repeat(3, 72px);
+    gap: 8px;
   }
-  .pad button { padding: 0; height: 56px; background: var(--panel); color: var(--text); font-size: 1.4rem; }
-  .pad .up { grid-column: 2; }
-  .pad .left { grid-column: 1; grid-row: 2; }
-  .pad .down { grid-column: 2; grid-row: 2; }
-  .pad .right { grid-column: 3; grid-row: 2; }
-  @media (hover: hover) and (pointer: fine) { .pad { display: none; } }
+  .pad button {
+    padding: 0;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #7e22ce, #581c87);
+    color: #f3e8ff;
+    font-size: 1.6rem;
+    box-shadow: 0 5px 0 #2e1065, 0 8px 16px rgba(0,0,0,.4);
+    transition: transform .06s, box-shadow .06s;
+    touch-action: none;
+  }
+  .pad button.pressed, .pad button:active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #2e1065, 0 3px 8px rgba(0,0,0,.4);
+    filter: brightness(1.2);
+  }
+  .pad .up { grid-area: 1 / 2; }
+  .pad .left { grid-area: 2 / 1; }
+  .pad .pause { grid-area: 2 / 2; border-radius: 50%; font-size: 1.1rem; background: var(--panel); color: var(--muted); box-shadow: 0 4px 0 #0b1120; }
+  .pad .right { grid-area: 2 / 3; }
+  .pad .down { grid-area: 3 / 2; }
   .hint { color: var(--muted); font-size: .9rem; margin: 0; }
+  .hint .touch { display: none; }
+  @media (hover: hover) and (pointer: fine) { .pad { display: none; } }
+  @media (hover: none), (pointer: coarse) {
+    body { justify-content: flex-start; gap: 12px; padding-top: max(16px, env(safe-area-inset-top)); }
+    h1 { font-size: 1.5rem; }
+    .skin { padding: 14px; border-radius: 20px; }
+    .board { width: min(calc(100vw - 60px), calc(100svh - 400px), 420px); min-width: 220px; }
+    .hint .keys { display: none; }
+    .hint .touch { display: inline; }
+  }
 </style>
 </head>
 <body>
@@ -119,12 +146,16 @@
   </div>
 
   <div class="pad">
-    <button class="up" data-dir="up">▲</button>
-    <button class="left" data-dir="left">◀</button>
-    <button class="down" data-dir="down">▼</button>
-    <button class="right" data-dir="right">▶</button>
+    <button class="up" data-dir="up" aria-label="Haut">▲</button>
+    <button class="left" data-dir="left" aria-label="Gauche">◀</button>
+    <button class="pause" id="pauseBtn" aria-label="Pause">❚❚</button>
+    <button class="right" data-dir="right" aria-label="Droite">▶</button>
+    <button class="down" data-dir="down" aria-label="Bas">▼</button>
   </div>
-  <p class="hint">Flèches ou ZQSD pour bouger · Espace pour pause</p>
+  <p class="hint">
+    <span class="keys">Flèches ou ZQSD pour bouger · Espace pour pause</span>
+    <span class="touch">Touches ou glisse le doigt sur le plateau</span>
+  </p>
 
 <script>
   const canvas = document.getElementById('game');
@@ -237,7 +268,9 @@
     if (paused) {
       clearTimeout(timer);
       titleEl.textContent = 'Pause';
-      messageEl.textContent = 'Appuie sur Espace pour reprendre.';
+      messageEl.textContent = matchMedia('(pointer: coarse)').matches
+        ? 'Touche ❚❚ pour reprendre.'
+        : 'Appuie sur Espace pour reprendre.';
       startBtn.textContent = 'Reprendre';
       overlay.classList.remove('hidden');
     } else {
@@ -268,19 +301,46 @@
   });
 
   startBtn.addEventListener('click', () => (running && paused ? togglePause() : start()));
-  document.querySelectorAll('.pad button').forEach((b) =>
-    b.addEventListener('click', () => turn(b.dataset.dir)));
-
-  let touchStart = null;
-  canvas.addEventListener('touchstart', (e) => { touchStart = e.touches[0]; }, { passive: true });
-  canvas.addEventListener('touchend', (e) => {
-    if (!touchStart) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStart.clientX, dy = t.clientY - touchStart.clientY;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) > 20)
-      turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
-    touchStart = null;
+  // Touch buttons react on pointerdown (no 300ms click delay, works with multiple fingers)
+  document.querySelectorAll('.pad button').forEach((b) => {
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      b.classList.add('pressed');
+      if (navigator.vibrate) navigator.vibrate(10);
+      if (b.dataset.dir) {
+        if (!running) start();
+        turn(b.dataset.dir);
+      } else if (!running) {
+        start();
+      } else {
+        togglePause();
+      }
+    });
+    const release = () => b.classList.remove('pressed');
+    b.addEventListener('pointerup', release);
+    b.addEventListener('pointercancel', release);
+    b.addEventListener('pointerleave', release);
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
   });
+
+  // Swipe on the board: turns as soon as the finger has moved enough, no need to lift it
+  let touchStart = null;
+  const board = document.querySelector('.board');
+  board.addEventListener('touchstart', (e) => {
+    if (e.target === startBtn) return;
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  board.addEventListener('touchmove', (e) => {
+    if (!touchStart) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 24) {
+      turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+      touchStart = { x: t.clientX, y: t.clientY };
+    }
+  }, { passive: false });
+  board.addEventListener('touchend', () => { touchStart = null; });
 
   reset();
   draw();
