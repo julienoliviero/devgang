@@ -9,8 +9,8 @@
     --bg: #0f172a;
     --panel: #1e293b;
     --grid: #263449;
-    --snake: #22c55e;
-    --head: #86efac;
+    --snake: #a855f7;
+    --head: #d8b4fe;
     --food: #f43f5e;
     --text: #e2e8f0;
     --muted: #94a3b8;
@@ -62,7 +62,7 @@
     border: 0;
     border-radius: 8px;
     background: var(--snake);
-    color: #052e16;
+    color: #2e1065;
     cursor: pointer;
   }
   button:hover { filter: brightness(1.1); }
@@ -180,7 +180,7 @@
         if ((x + y) % 2) ctx.fillRect(x * SIZE, y * SIZE, SIZE, SIZE);
 
     cell(food[0], food[1], '#f43f5e', 3, SIZE / 2);
-    snake.forEach(([x, y], i) => cell(x, y, i === 0 ? '#86efac' : '#22c55e'));
+    snake.forEach(([x, y], i) => cell(x, y, i === 0 ? '#d8b4fe' : '#a855f7'));
   }
 
   function start() {
