@@ -1,0 +1,18 @@
+{
+  "genre": "Electronic",
+  "styles": ["House", "Techno", "Minimal", "Progressive House", "Electro", "Breakbeat", "Trance", "Tribal House", "Deep House"],
+  "countries": "all",
+  "year_from": 1985,
+  "year_to": 2015,
+  "format": "Vinyl",
+  "min_have": 5,
+
+  "tiers": [
+    { "name": "Legendary",  "share_of_pool": 0.00105, "pack_odds": 0.002 },
+    { "name": "Ultra Rare", "share_of_pool": 0.00316, "pack_odds": 0.018 },
+    { "name": "Super Rare", "share_of_pool": 0.00632, "pack_odds": 0.05 },
+    { "name": "Rare",       "share_of_pool": 0.0105,  "pack_odds": 0.13 },
+    { "name": "Uncommon",   "share_of_pool": 0.0176,  "pack_odds": 0.25 },
+    { "name": "Common",     "share_of_pool": null,    "pack_odds": 0.55 }
+  ]
+}
